@@ -923,7 +923,8 @@ final class MenuBarLayoutRenderer {
                     fillPercent: clamped,
                     size: barSize,
                     tint: style.foregroundColor,
-                    stale: options.isStale)
+                    stale: options.isStale,
+                    isTemplate: style.foregroundColor == Self.neutralForegroundColor(options))
                 attachment.bounds = NSRect(
                     x: 0,
                     y: self.attachmentYOrigin(height: barSize.height, style: style),
@@ -1480,7 +1481,8 @@ extension MenuBarLayoutRenderer {
                 fillPercent: clamped,
                 size: barSize,
                 tint: style.foregroundColor,
-                stale: options.isStale)
+                stale: options.isStale,
+                isTemplate: style.foregroundColor == Self.neutralForegroundColor(options))
             : self.progressBarImage(
                 fillPercent: clamped,
                 size: barSize,
@@ -1577,18 +1579,20 @@ extension MenuBarLayoutRenderer {
     }
 
     /// Continuous capsule meter matching the "Meter bars" icon style: translucent track, hairline
-    /// outline, and a fill clipped to the capsule so the progress edge stays straight.
+    /// outline, and a fill clipped to the capsule so the progress edge stays straight. Neutral capsules are
+    /// template images so monochrome titles still collapse into one AppKit-tinted status image (inactive displays).
     private static func capsuleBarImage(
         fillPercent: Double,
         size: NSSize,
         tint: NSColor,
-        stale: Bool)
+        stale: Bool,
+        isTemplate: Bool)
         -> NSImage
     {
         let trackFillAlpha: CGFloat = stale ? 0.18 : 0.28
         let trackStrokeAlpha: CGFloat = stale ? 0.28 : 0.44
         let fillAlpha: CGFloat = stale ? 0.55 : 1.0
-        return NSImage(size: size, flipped: false) { rect in
+        let image = NSImage(size: size, flipped: false) { rect in
             let radius = rect.height / 2
             let track = NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
             tint.withAlphaComponent(trackFillAlpha).setFill()
@@ -1613,6 +1617,8 @@ extension MenuBarLayoutRenderer {
             }
             return true
         }
+        image.isTemplate = isTemplate
+        return image
     }
 
     /// Attachment runs drop `baselineOffset` so the glyph shift is not applied twice. The same

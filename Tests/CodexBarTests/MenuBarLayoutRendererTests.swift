@@ -1273,6 +1273,17 @@ struct MenuBarLayoutRendererTests {
         #expect(first.attributedTitle !== nextMinute.attributedTitle)
     }
 
+    @Test(arguments: [MenuBarLayoutToken.usageBar, .progressBar(window: .weekly)])
+    func `rounded usage bars stay template images so inactive displays dim them`(token: MenuBarLayoutToken) {
+        let renderer = MenuBarLayoutRenderer()
+        let layout = MenuBarLayout(lines: [[token]])
+        let neutral = renderer.render(
+            layout: layout, data: self.data(), icon: nil, options: self.options(roundedUsageBars: true))
+        #expect(neutral.statusImage?.isTemplate == true)
+        let segmented = renderer.render(layout: layout, data: self.data(), icon: nil, options: self.options())
+        #expect(!neutral.attributedTitle.isEqual(to: segmented.attributedTitle))
+    }
+
     @Test
     func `usage bar follows remaining display direction`() {
         let renderer = MenuBarLayoutRenderer()
@@ -2572,7 +2583,8 @@ struct MenuBarLayoutRendererTests {
         isHighlighted: Bool = false,
         forceStackedStyle: Bool = false,
         monospacedDigits: Bool = false,
-        showWindowLabels: Bool = true) -> MenuBarLayoutRenderOptions
+        showWindowLabels: Bool = true,
+        roundedUsageBars: Bool = false) -> MenuBarLayoutRenderOptions
     {
         MenuBarLayoutRenderOptions(
             size: size,
@@ -2589,7 +2601,8 @@ struct MenuBarLayoutRendererTests {
             colorByProvider: colorByProvider,
             forceStackedStyle: forceStackedStyle,
             monospacedDigits: monospacedDigits,
-            showWindowLabels: showWindowLabels)
+            showWindowLabels: showWindowLabels,
+            roundedUsageBars: roundedUsageBars)
     }
 
     private func averageBrightness(
