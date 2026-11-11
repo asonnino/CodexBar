@@ -1,0 +1,69 @@
+# Fork-only: keep `rounded-usage-bars` current with steipete/CodexBar.
+# Runs daily (and on demand). Clean merges are pushed; a conflict fails the
+# run, which makes GitHub email the fork owner.
+#
+# Requires repo secret SYNC_TOKEN: fine-grained PAT scoped to this fork with
+# Contents: read/write and Workflows: read/write (upstream merges often touch
+# .github/workflows, which the default GITHUB_TOKEN cannot push).
+
+name: Sync upstream
+
+on:
+  schedule:
+    - cron: "17 6 * * *" # daily, 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+env:
+  UPSTREAM_REPO: https://github.com/steipete/CodexBar.git
+  UPSTREAM_BRANCH: main
+  FORK_BRANCH: rounded-usage-bars
+
+jobs:
+  sync:
+    if: github.repository != 'steipete/CodexBar'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.FORK_BRANCH }}
+          fetch-depth: 0
+          token: ${{ secrets.SYNC_TOKEN }}
+
+      - name: Fetch upstream
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream "$UPSTREAM_REPO"
+          git fetch --no-tags upstream "$UPSTREAM_BRANCH"
+
+      - name: Mirror upstream main into the fork's main
+        run: git push origin "refs/remotes/upstream/$UPSTREAM_BRANCH:refs/heads/main"
+
+      - name: Merge upstream into the fork branch
+        run: |
+          if git merge-base --is-ancestor "upstream/$UPSTREAM_BRANCH" HEAD; then
+            echo "Already up to date with upstream." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          incoming=$(git rev-list --count "HEAD..upstream/$UPSTREAM_BRANCH")
+          if ! git merge --no-edit "upstream/$UPSTREAM_BRANCH"; then
+            {
+              echo "### Merge conflict"
+              echo "Conflicting files:"
+              git diff --name-only --diff-filter=U | sed 's/^/- /'
+              echo
+              echo "Resolve locally: \`git fetch upstream && git merge upstream/$UPSTREAM_BRANCH\`"
+            } | tee -a "$GITHUB_STEP_SUMMARY"
+            git merge --abort
+            echo "::error::Upstream merge conflicts with $FORK_BRANCH; resolve manually."
+            exit 1
+          fi
+          git push origin "HEAD:$FORK_BRANCH"
+          echo "Merged $incoming upstream commit(s) into $FORK_BRANCH." | tee -a "$GITHUB_STEP_SUMMARY"
